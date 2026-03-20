@@ -49,21 +49,19 @@ Requirements for this extension milestone. Validated capabilities are already sh
 
 ## Traceability
 
-Updated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | ROW-01 | Phase 1 | Pending |
 | ROW-02 | Phase 1 | Pending |
 | ROW-03 | Phase 1 | Pending |
 | ROW-04 | Phase 1 | Pending |
+| AUD-01 | Phase 1 | Pending |
+| AUD-02 | Phase 1 | Pending |
+| AUD-03 | Phase 1 | Pending |
 | SPO-01 | Phase 2 | Pending |
 | SPO-02 | Phase 2 | Pending |
 | SPO-03 | Phase 2 | Pending |
 | SPO-04 | Phase 2 | Pending |
-| AUD-01 | Phase 1 | Pending |
-| AUD-02 | Phase 1 | Pending |
-| AUD-03 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 11 total
@@ -72,4 +70,4 @@ Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-20*
-*Last updated: 2026-03-20 after initial definition*
+*Last updated: 2026-03-20 — traceability finalized after roadmap creation*
