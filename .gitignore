@@ -23,8 +23,5 @@ lib/
 # Dev tool directories
 /devTools/
 
-# Data
-.data/
-
 # Claude
 .claude/
