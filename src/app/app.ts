@@ -21,9 +21,9 @@ const EANS_SHEET = "Included-Excluded EANs- Voucher";
 
 // Row indices (0-based) inside each sheet
 const PROMO_HEADER_ROW = 7; // Row 8 in Excel — column names
-const PROMO_DATA_ROW = 9;   // Row 10 in Excel — first actual data row (row 9 is a description row)
-const EANS_HEADER_ROW = 4;  // Row 5 in Excel — column names
-const EANS_DATA_ROW = 6;    // Row 7 in Excel — first actual data row (row 6 is a description row)
+const PROMO_DATA_ROW = 9; // Row 10 in Excel — first actual data row (row 9 is a description row)
+const EANS_HEADER_ROW = 4; // Row 5 in Excel — column names
+const EANS_DATA_ROW = 6; // Row 7 in Excel — first actual data row (row 6 is a description row)
 
 // ---------------------------------------------------------------------------
 // Shared model / storage / app
@@ -89,13 +89,17 @@ function cleanHeader(h: unknown): string {
 function excelCellText(value: ExcelJS.CellValue): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
   if (value instanceof Date) return value.toISOString();
   const obj = value as unknown as Record<string, unknown>;
   if ("richText" in obj) {
-    return (obj.richText as Array<{ text: string }>).map((r) => r.text).join("");
+    return (obj.richText as Array<{ text: string }>)
+      .map((r) => r.text)
+      .join("");
   }
-  if ("result" in obj) return obj.result !== undefined ? String(obj.result) : "";
+  if ("result" in obj)
+    return obj.result !== undefined ? String(obj.result) : "";
   return String(value);
 }
 
@@ -148,8 +152,18 @@ function readBriefContext(): string {
     ].join("\n");
   };
 
-  const promoSection = formatSheet(PROMO_SHEET, PROMO_HEADER_ROW, PROMO_DATA_ROW, 25);
-  const eansSection = formatSheet(EANS_SHEET, EANS_HEADER_ROW, EANS_DATA_ROW, 11);
+  const promoSection = formatSheet(
+    PROMO_SHEET,
+    PROMO_HEADER_ROW,
+    PROMO_DATA_ROW,
+    25,
+  );
+  const eansSection = formatSheet(
+    EANS_SHEET,
+    EANS_HEADER_ROW,
+    EANS_DATA_ROW,
+    11,
+  );
 
   return ["[BRIEF DATA]", promoSection, "", eansSection, "[/BRIEF DATA]"].join(
     "\n",
@@ -279,6 +293,41 @@ async function applyUpdate(action: UpdateAction): Promise<{
 // Message handler
 // ---------------------------------------------------------------------------
 
+/**
+ * Attempt to send an activity, retrying once on transient network errors.
+ * Returns true if delivered successfully, false otherwise.
+ * Never throws — all errors are caught and logged.
+ */
+async function safeSend<T>(
+  send: (activity: T) => Promise<unknown>,
+  activity: T,
+  retries = 1
+): Promise<boolean> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      await send(activity);
+      return true;
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      const isTransient =
+        code === "ECONNRESET" || code === "ETIMEDOUT" || code === "ECONNREFUSED";
+      if (isTransient && attempt < retries) {
+        console.warn(
+          `safeSend: transient error (${code}), retrying (${attempt + 1}/${retries})...`
+        );
+        await new Promise((r) => setTimeout(r, 1000));
+        continue;
+      }
+      console.error(
+        `safeSend: failed to deliver message after ${attempt + 1} attempt(s):`,
+        err
+      );
+      return false;
+    }
+  }
+  return false;
+}
+
 app.on("message", async ({ send, activity }) => {
   const conversationKey = `${activity.conversation.id}/${activity.from.id}`;
   const messages: Message[] = storage.get(conversationKey) ?? [];
@@ -297,9 +346,7 @@ app.on("message", async ({ send, activity }) => {
     // Strip Brief data from stored conversation history to keep it lean.
     // The last entry added by prompt.send() is the user message — replace
     // its content with just the original user text.
-    const lastUserIdx = [...messages]
-      .map((m) => m.role)
-      .lastIndexOf("user");
+    const lastUserIdx = [...messages].map((m) => m.role).lastIndexOf("user");
     if (lastUserIdx !== -1) {
       (messages[lastUserIdx] as Message).content = userText;
     }
@@ -320,14 +367,13 @@ app.on("message", async ({ send, activity }) => {
       }
     }
 
-    await send(
-      new MessageActivity(displayText).addAiGenerated().addFeedback(),
-    );
+    await safeSend(send, new MessageActivity(displayText).addAiGenerated().addFeedback());
     storage.set(conversationKey, messages);
   } catch (error) {
-    console.error("Brief agent error:", error);
-    await send(
-      "Sorry, I ran into an issue processing your request. Please try again or rephrase your message.",
+    console.error("Brief agent error:", { conversationKey, userText: userText.substring(0, 200), error });
+    await safeSend(
+      send,
+      "Sorry, I ran into an issue processing your request. Please try again or rephrase your message."
     );
   }
 });
