@@ -20,7 +20,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 ### Phase 1: Row Operations + Audit Trail
 **Goal**: Users can insert and update EANs Voucher Dashboard rows (Voucher Name | Inclusions Group | Exclusion Group) via natural language, with correct group-type disambiguation and server-side validation (local file)
 **Depends on**: Nothing (extends existing bot in place)
-**Requirements**: ROW-01, ROW-02, ROW-03, ROW-04, AUD-01, AUD-02, AUD-03
+**Requirements**: ROW-01, ROW-02, ROW-05
+**Deferred Requirements**: ROW-03, ROW-04, AUD-01, AUD-02, AUD-03
 **Success Criteria** (what must be TRUE):
   1. User can say "add an inclusions row for [voucher] with group [name]" and the row appears in the EANs Voucher Dashboard
   2. User can say "add an exclusion row for [voucher] with group [name]" and the row appears in the EANs Voucher Dashboard

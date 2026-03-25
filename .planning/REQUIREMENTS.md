@@ -15,6 +15,7 @@ Requirements for this extension milestone. Validated capabilities are already sh
 - [ ] **ROW-02**: New EANs row addition enforces mutual-exclusivity validation (Inclusions Group XOR Exclusion Group) and Voucher Name cross-check against Promo-Voucher; invalid inserts are rejected with an explanation
 - [ ] **ROW-03**: User can delete a voucher row from Promo-Voucher via natural language (immediate, no confirmation prompt)
 - [ ] **ROW-04**: After successful add or delete, bot outputs a table-format audit summary (Campaign | Voucher | Operation | Changed by | Time)
+- [ ] **ROW-05**: User can update any column on an existing EANs Voucher Dashboard row (Voucher Name, Inclusions Group, or Exclusion Group) via natural language; when a voucher has both an inclusions row and an exclusion row, the group type stated in the request disambiguates which row is targeted; when no matching row is found, the bot offers to insert instead and requires explicit user confirmation before any write occurs
 
 ### SharePoint Integration
 
@@ -58,6 +59,7 @@ Requirements for this extension milestone. Validated capabilities are already sh
 | ROW-02 | Phase 1 | Pending |
 | ROW-03 | Phase 1 | Deferred (per 01-CONTEXT.md) |
 | ROW-04 | Phase 1 | Deferred (per 01-CONTEXT.md) |
+| ROW-05 | Phase 1 | Pending |
 | AUD-01 | Phase 1 | Deferred (per 01-CONTEXT.md) |
 | AUD-02 | Phase 1 | Deferred (per 01-CONTEXT.md) |
 | AUD-03 | Phase 1 | Deferred (per 01-CONTEXT.md) |
@@ -67,10 +69,10 @@ Requirements for this extension milestone. Validated capabilities are already sh
 | SPO-04 | Phase 2 | Pending |
 
 **Coverage:**
-- v1 requirements: 11 total
-- Mapped to phases: 11
+- v1 requirements: 12 total
+- Mapped to phases: 12
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-20*
-*Last updated: 2026-03-25 — ROW-01/ROW-02 redefined to EANs insert scope (Promo-Voucher insert already shipped); ROW-03/ROW-04/AUD-01-03 marked Deferred per phase 1 context session*
+*Last updated: 2026-03-25 — ROW-01/ROW-02 redefined to EANs insert scope (Promo-Voucher insert already shipped); ROW-03/ROW-04/AUD-01-03 marked Deferred per phase 1 context session; ROW-05 added for EANs update with group-type disambiguation and no-match offer flow*
