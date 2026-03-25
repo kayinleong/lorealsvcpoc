@@ -18,21 +18,26 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Row Operations + Audit Trail
-**Goal**: Users can add and delete voucher rows via natural language, and every successful change produces a structured audit record in the Teams conversation
+**Goal**: Users can insert and update EANs Voucher Dashboard rows (Voucher Name | Inclusions Group | Exclusion Group) via natural language, with correct group-type disambiguation and server-side validation (local file)
 **Depends on**: Nothing (extends existing bot in place)
 **Requirements**: ROW-01, ROW-02, ROW-03, ROW-04, AUD-01, AUD-02, AUD-03
 **Success Criteria** (what must be TRUE):
-  1. User can say "Add a new voucher row" with the required fields and the row appears in Promo-Voucher with all validation rules enforced
-  2. User can say "Delete voucher [name]" and the row is removed from Promo-Voucher without a confirmation prompt
-  3. After a successful add or delete, the bot posts a table in Teams showing Campaign, Voucher, Operation, Changed by, and Time
-  4. After any successful update (existing or new), the bot posts a table showing Campaign, Voucher, Field, Before, After, Changed by (Teams display name), and UTC Time
-  5. Attempted adds that violate validation rules (Min Spend, Discount Type, Budget/Quantity exclusivity, Voucher Code) are rejected with an explanation before any write occurs
-**Plans**: TBD
+  1. User can say "add an inclusions row for [voucher] with group [name]" and the row appears in the EANs Voucher Dashboard
+  2. User can say "add an exclusion row for [voucher] with group [name]" and the row appears in the EANs Voucher Dashboard
+  3. Inserts where both Inclusions Group and Exclusion Group are provided are rejected with an explanation
+  4. Inserts with an unrecognised Voucher Name are rejected with an explanation
+  5. User can say "update inclusions group for [voucher] to [value]" and the correct EANs row is updated (group-type disambiguation working)
+  6. When no EANs row is found on update, the bot offers to insert instead; the user must confirm before any write occurs
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: Implement add-row operation (action block, ExcelJS write, validation)
-- [ ] 01-02: Implement delete-row operation (action block, ExcelJS splice)
-- [ ] 01-03: Implement audit trail output (structured table, user identity, UTC timestamp)
+- [ ] 01-01-PLAN.md — EANs insert: LLM instructions + server-side validateEANsInsert validation guard
+- [ ] 01-02-PLAN.md — EANs update: group_type disambiguation in applyUpdateSurgical + no-match offer + LLM instructions
+
+**Deferred to backlog (per user decision in 01-CONTEXT.md):**
+- ROW-03: Promo-Voucher delete row
+- ROW-04: Audit table after add/delete (ROW-04 format)
+- AUD-01/AUD-02/AUD-03: Structured audit trail in Teams chat
 
 ### Phase 2: SharePoint Integration
 **Goal**: The bot reads and writes Brief.xlsx from SharePoint via Microsoft Graph API, and returns the SharePoint web URL after every successful change
@@ -57,5 +62,5 @@ Phases execute in numeric order: 1 → 2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Row Operations + Audit Trail | 0/3 | Not started | - |
+| 1. Row Operations + Audit Trail | 0/2 | Not started | - |
 | 2. SharePoint Integration | 0/3 | Not started | - |
