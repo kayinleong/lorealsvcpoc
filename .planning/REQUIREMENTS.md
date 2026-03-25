@@ -9,8 +9,10 @@ Requirements for this extension milestone. Validated capabilities are already sh
 
 ### Row Operations
 
-- [ ] **ROW-01**: User can add a new voucher row to Promo-Voucher via natural language, providing Campaign Name, Voucher Name, Tier, Start/End Dates, Voucher Type, Discount Type, and relevant discount fields
-- [ ] **ROW-02**: New row addition enforces all existing validation rules (Min Spend, Discount Type consistency, Amount Capped, Voucher Budget/Quantity exclusivity, Voucher Code rules)
+<!-- Promo-Voucher insert (add row + validation) is already shipped and validated. ROW-01 and ROW-02
+     have been updated to reflect the remaining net-new EANs insert work that Phase 1 delivers. -->
+- [ ] **ROW-01**: User can add a new Voucher Dashboard row to the EANs tab (Included-Excluded EANs- Voucher) via natural language, providing Voucher Name (must match an existing Promo-Voucher entry) and either Inclusions Group or Exclusion Group
+- [ ] **ROW-02**: New EANs row addition enforces mutual-exclusivity validation (Inclusions Group XOR Exclusion Group) and Voucher Name cross-check against Promo-Voucher; invalid inserts are rejected with an explanation
 - [ ] **ROW-03**: User can delete a voucher row from Promo-Voucher via natural language (immediate, no confirmation prompt)
 - [ ] **ROW-04**: After successful add or delete, bot outputs a table-format audit summary (Campaign | Voucher | Operation | Changed by | Time)
 
@@ -46,6 +48,7 @@ Requirements for this extension milestone. Validated capabilities are already sh
 | Modifying other Excel tabs | Scope limited to Promo-Voucher and Included-Excluded EANs per product decision |
 | Modifying auto-calculated columns | Enforced by agent instructions; preserves Excel formula integrity |
 | Direct file download URL | User requested SharePoint web URL (open in browser) instead |
+| Promo-Voucher insert (add row) | Already shipped and validated — not a remaining requirement |
 
 ## Traceability
 
@@ -53,11 +56,11 @@ Requirements for this extension milestone. Validated capabilities are already sh
 |-------------|-------|--------|
 | ROW-01 | Phase 1 | Pending |
 | ROW-02 | Phase 1 | Pending |
-| ROW-03 | Phase 1 | Pending |
-| ROW-04 | Phase 1 | Pending |
-| AUD-01 | Phase 1 | Pending |
-| AUD-02 | Phase 1 | Pending |
-| AUD-03 | Phase 1 | Pending |
+| ROW-03 | Phase 1 | Deferred (per 01-CONTEXT.md) |
+| ROW-04 | Phase 1 | Deferred (per 01-CONTEXT.md) |
+| AUD-01 | Phase 1 | Deferred (per 01-CONTEXT.md) |
+| AUD-02 | Phase 1 | Deferred (per 01-CONTEXT.md) |
+| AUD-03 | Phase 1 | Deferred (per 01-CONTEXT.md) |
 | SPO-01 | Phase 2 | Pending |
 | SPO-02 | Phase 2 | Pending |
 | SPO-03 | Phase 2 | Pending |
@@ -70,4 +73,4 @@ Requirements for this extension milestone. Validated capabilities are already sh
 
 ---
 *Requirements defined: 2026-03-20*
-*Last updated: 2026-03-20 — traceability finalized after roadmap creation*
+*Last updated: 2026-03-25 — ROW-01/ROW-02 redefined to EANs insert scope (Promo-Voucher insert already shipped); ROW-03/ROW-04/AUD-01-03 marked Deferred per phase 1 context session*
