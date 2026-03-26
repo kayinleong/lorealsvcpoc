@@ -206,6 +206,7 @@ interface UpdateAction {
   value?: string | number; // optional — not present when changes[] is used
   changes?: BulkChange[];  // bulk mode: multiple field updates in one action
   updates?: BulkChange[];  // alias for changes — LLM sometimes returns "updates" instead
+  rows?: BulkChange[];     // alias for changes — LLM sometimes returns "rows" instead
 }
 
 interface AddAction {
@@ -426,11 +427,11 @@ async function applyUpdateSurgical(action: UpdateAction): Promise<{
       };
     }
 
-    // Find target row
+    // Find all matching rows
     const campaignColIdx = 1;
     const voucherColIdx = action.tab === PROMO_SHEET ? 11 : 1;
 
-    let targetRowIdx = -1;
+    const targetRowIdxs: number[] = [];
     for (let r = dataRowIdx; r < rows.length; r++) {
       const row = rows[r] as unknown[];
       const campaignVal = String(row[campaignColIdx] ?? "");
@@ -448,12 +449,11 @@ async function applyUpdateSurgical(action: UpdateAction): Promise<{
         voucherVal.toLowerCase().includes(action.voucher_name.toLowerCase());
 
       if (campaignMatch && voucherMatch) {
-        targetRowIdx = r;
-        break;
+        targetRowIdxs.push(r);
       }
     }
 
-    if (targetRowIdx === -1) {
+    if (targetRowIdxs.length === 0) {
       return {
         success: false,
         error: `Record not found.`,
@@ -462,34 +462,38 @@ async function applyUpdateSurgical(action: UpdateAction): Promise<{
 
     // Convert to Excel cell reference (e.g., "P10")
     const targetCol = columnNumberToLetter(fieldColIdx + 1);
-    const targetRow = targetRowIdx + 1;
-    const cellRef = `${targetCol}${targetRow}`;
 
-    console.log(`[applyUpdateSurgical] Target cell: ${cellRef} (Row ${targetRow}, Col ${targetCol})`);
-
-    // Get old value
-    const oldValue = String(rows[targetRowIdx][fieldColIdx] ?? "");
+    // Get old value from first match
+    const oldValue = String(rows[targetRowIdxs[0]][fieldColIdx] ?? "");
     console.log(`[applyUpdateSurgical] Old value: "${oldValue}", New value: "${action.value}"`);
 
-    // Step 6: Surgically update only the target cell in raw XML text
-    const xmlUpdateResult = updateWorksheetXmlCellValue(
-      worksheetXML,
-      cellRef,
-      targetRow,
-      String(action.value),
-    );
+    // Step 6: Surgically update all matching cells in raw XML text
+    let currentXml = worksheetXML;
+    for (const targetRowIdx of targetRowIdxs) {
+      const targetRow = targetRowIdx + 1;
+      const cellRef = `${targetCol}${targetRow}`;
+      console.log(`[applyUpdateSurgical] Target cell: ${cellRef} (Row ${targetRow}, Col ${targetCol})`);
 
-    if (!xmlUpdateResult.success || !xmlUpdateResult.updatedXml) {
-      return {
-        success: false,
-        error: xmlUpdateResult.error ?? "Could not update target cell in worksheet XML.",
-      };
+      const xmlUpdateResult = updateWorksheetXmlCellValue(
+        currentXml,
+        cellRef,
+        targetRow,
+        String(action.value),
+      );
+
+      if (!xmlUpdateResult.success || !xmlUpdateResult.updatedXml) {
+        return {
+          success: false,
+          error: xmlUpdateResult.error ?? "Could not update target cell in worksheet XML.",
+        };
+      }
+
+      console.log(`[applyUpdateSurgical] Updated cell ${cellRef} via raw XML patch`);
+      currentXml = xmlUpdateResult.updatedXml;
     }
 
-    console.log(`[applyUpdateSurgical] Updated cell ${cellRef} via raw XML patch`);
-
     // Step 7: Write modified XML back to ZIP
-    const modifiedXML = xmlUpdateResult.updatedXml;
+    const modifiedXML = currentXml;
     zip.updateFile(worksheetPath, Buffer.from(modifiedXML, 'utf8'));
 
     // Step 8: Save the modified ZIP as xlsx
@@ -838,7 +842,7 @@ async function applyUpdate(action: UpdateAction): Promise<{
   const campaignColIdx = 1;
   const voucherColIdx = action.tab === PROMO_SHEET ? 11 : 1;
 
-  let targetRowIdx = -1;
+  const targetRowIdxs: number[] = [];
   for (let r = dataRowIdx; r < rows.length; r++) {
     const row = rows[r] as unknown[];
     const campaignVal = String(row[campaignColIdx] ?? "");
@@ -856,24 +860,25 @@ async function applyUpdate(action: UpdateAction): Promise<{
       voucherVal.toLowerCase().includes(action.voucher_name.toLowerCase());
 
     if (campaignMatch && voucherMatch) {
-      targetRowIdx = r;
       console.log(`[applyUpdate] Found matching record at row index ${r}`);
-      break;
+      targetRowIdxs.push(r);
     }
   }
 
-  if (targetRowIdx === -1) {
+  if (targetRowIdxs.length === 0) {
     return {
       success: false,
       error: `Record not found — campaign: "${action.campaign_name}", voucher: "${action.voucher_name}".`,
     };
   }
 
-  const targetRow = rows[targetRowIdx] as unknown[];
-  const oldValue = String(targetRow[fieldColIdx] ?? "");
+  const firstTargetRow = rows[targetRowIdxs[0]] as unknown[];
+  const oldValue = String(firstTargetRow[fieldColIdx] ?? "");
 
-  console.log(`[applyUpdate] Updating cell - Old: "${oldValue}", New: "${action.value}"`);
-  targetRow[fieldColIdx] = action.value;
+  console.log(`[applyUpdate] Updating ${targetRowIdxs.length} matching row(s) - Old: "${oldValue}", New: "${action.value}"`);
+  for (const targetRowIdx of targetRowIdxs) {
+    (rows[targetRowIdx] as unknown[])[fieldColIdx] = action.value;
+  }
 
   // Convert back to worksheet, copying metadata to preserve basic formatting
   const newWorksheet = xlsx.utils.aoa_to_sheet(rows);
@@ -1142,7 +1147,7 @@ app.on("message", async ({ send, activity }) => {
     if (action?.operation === "update") {
       console.log(`[${requestId}] Applying update action...`);
       const updateAction = action as UpdateAction;
-      const entries: BulkChange[] = updateAction.changes ?? updateAction.updates ?? [
+      const entries: BulkChange[] = updateAction.changes ?? updateAction.updates ?? updateAction.rows ?? [
         {
           campaign_name: updateAction.campaign_name,
           voucher_name: updateAction.voucher_name,
