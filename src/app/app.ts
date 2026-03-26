@@ -189,13 +189,21 @@ function readBriefContext(): string {
 // Action parsing and application
 // ---------------------------------------------------------------------------
 
+interface BulkChange {
+  campaign_name?: string;
+  voucher_name?: string;
+  field: string;
+  value: string | number;
+}
+
 interface UpdateAction {
   operation: "update";
   tab: string;
   campaign_name?: string;
   voucher_name?: string;
-  field: string;
-  value: string | number;
+  field?: string;          // optional — not present when changes[] is used
+  value?: string | number; // optional — not present when changes[] is used
+  changes?: BulkChange[];  // bulk mode: multiple field updates in one action
 }
 
 interface AddAction {
@@ -1012,15 +1020,43 @@ app.on("message", async ({ send, activity }) => {
 
     if (action?.operation === "update") {
       console.log(`[${requestId}] Applying update action...`);
-      const result = await applyUpdate(action as UpdateAction);
-      if (result.success) {
-        console.log(`[${requestId}] ✓ Update applied successfully. Old value: ${result.oldValue}`);
+      const updateAction = action as UpdateAction;
+      const entries: BulkChange[] = updateAction.changes ?? [
+        {
+          campaign_name: updateAction.campaign_name,
+          voucher_name: updateAction.voucher_name,
+          field: updateAction.field!,
+          value: updateAction.value!,
+        },
+      ];
+
+      let allSucceeded = true;
+      const oldValues: string[] = [];
+      for (const entry of entries) {
+        const singleAction: UpdateAction = {
+          operation: "update",
+          tab: updateAction.tab,
+          campaign_name: entry.campaign_name,
+          voucher_name: entry.voucher_name,
+          field: entry.field,
+          value: entry.value,
+        };
+        const result = await applyUpdate(singleAction);
+        if (result.success) {
+          if (result.oldValue !== undefined) oldValues.push(String(result.oldValue));
+        } else {
+          allSucceeded = false;
+          console.error(`[${requestId}] ✗ Update failed for entry:`, entry, result.error);
+        }
+      }
+
+      if (allSucceeded) {
+        console.log(`[${requestId}] ✓ All updates applied. Old values: ${oldValues.join(", ")}`);
         displayText +=
           "\n\nBrief is updated: [Download the latest Brief.xlsx here](.data/Brief.xlsx)";
       } else {
-        console.error(`[${requestId}] ✗ Update failed:`, result.error);
         displayText +=
-          "\n\n⚠️ The brief could not be saved automatically. Please contact your admin.";
+          "\n\n⚠️ One or more updates could not be saved. Please contact your admin.";
       }
     } else if (action?.operation === "add") {
       console.log(`[${requestId}] Applying add action...`);
