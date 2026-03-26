@@ -465,7 +465,10 @@ async function applyUpdateSurgical(action: UpdateAction): Promise<{
 
     // Get old value from first match
     const oldValue = String(rows[targetRowIdxs[0]][fieldColIdx] ?? "");
-    console.log(`[applyUpdateSurgical] Old value: "${oldValue}", New value: "${action.value}"`);
+    const normalizedUpdateValue = /Discount Percentage/i.test(action.field) && typeof action.value === "number"
+      ? action.value / 100
+      : action.value;
+    console.log(`[applyUpdateSurgical] Old value: "${oldValue}", New value: "${normalizedUpdateValue}"`);
 
     // Step 6: Surgically update all matching cells in raw XML text
     let currentXml = worksheetXML;
@@ -478,7 +481,7 @@ async function applyUpdateSurgical(action: UpdateAction): Promise<{
         currentXml,
         cellRef,
         targetRow,
-        String(action.value),
+        String(normalizedUpdateValue),
       );
 
       if (!xmlUpdateResult.success || !xmlUpdateResult.updatedXml) {
@@ -555,9 +558,16 @@ function processAddValue(
   value: string | number | null
 ): string | number | null {
   if (value === null || value === undefined) return null;
-  if (typeof value === "number") return value;
+  const isPercentField = /Discount Percentage/i.test(fieldName);
+  if (typeof value === "number") {
+    return isPercentField ? value / 100 : value;
+  }
   const v = String(value).trim();
   if (v === "") return null;
+  if (isPercentField) {
+    const n = parseFloat(v);
+    if (!isNaN(n)) return n / 100;
+  }
   if (/time/i.test(fieldName)) {
     const frac = timeStringToExcelFraction(v);
     if (frac > 0 || v.startsWith("0:")) return frac;
@@ -875,9 +885,12 @@ async function applyUpdate(action: UpdateAction): Promise<{
   const firstTargetRow = rows[targetRowIdxs[0]] as unknown[];
   const oldValue = String(firstTargetRow[fieldColIdx] ?? "");
 
-  console.log(`[applyUpdate] Updating ${targetRowIdxs.length} matching row(s) - Old: "${oldValue}", New: "${action.value}"`);
+  const normalizedFallbackValue = /Discount Percentage/i.test(action.field) && typeof action.value === "number"
+    ? action.value / 100
+    : action.value;
+  console.log(`[applyUpdate] Updating ${targetRowIdxs.length} matching row(s) - Old: "${oldValue}", New: "${normalizedFallbackValue}"`);
   for (const targetRowIdx of targetRowIdxs) {
-    (rows[targetRowIdx] as unknown[])[fieldColIdx] = action.value;
+    (rows[targetRowIdx] as unknown[])[fieldColIdx] = normalizedFallbackValue;
   }
 
   // Convert back to worksheet, copying metadata to preserve basic formatting
