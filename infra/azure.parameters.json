@@ -5,14 +5,8 @@
     "resourceBaseName": {
       "value": "bot${{RESOURCE_SUFFIX}}"
     },
-    "azureOpenAIKey": {
-      "value": "${{SECRET_AZURE_OPENAI_API_KEY}}"
-    },
-    "azureOpenAIEndpoint": {
-      "value": "${{AZURE_OPENAI_ENDPOINT}}"
-    },
-    "azureOpenAIDeploymentName": {
-      "value": "${{AZURE_OPENAI_DEPLOYMENT_NAME}}"
+    "openAIKey": {
+      "value": "${{SECRET_OPENAI_API_KEY}}"
     },
     "webAppSKU": {
       "value": "B1"

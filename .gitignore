@@ -13,7 +13,6 @@ appPackage/build
 node_modules/
 
 # misc
-.env
 .deployment
 .DS_Store
 

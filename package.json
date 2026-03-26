@@ -31,10 +31,12 @@
         "@microsoft/teams.apps": "^2.0.0",
         "@microsoft/teams.common": "^2.0.0",
         "@microsoft/teams.openai": "^2.0.0",
-        "exceljs": "^4.4.0",
+        "adm-zip": "^0.5.16",
+        "fast-xml-parser": "^5.5.9",
         "xlsx": "^0.18.5"
     },
     "devDependencies": {
+        "@types/adm-zip": "^0.5.8",
         "@types/node": "^20.0.0",
         "@types/xlsx": "^0.0.35",
         "env-cmd": "^10.1.0",

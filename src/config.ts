@@ -3,9 +3,8 @@ const config = {
   MicrosoftAppType: process.env.BOT_TYPE,
   MicrosoftAppTenantId: process.env.TENANT_ID,
   MicrosoftAppPassword: process.env.CLIENT_SECRET,
-  azureOpenAIKey: process.env.AZURE_OPENAI_API_KEY,
-  azureOpenAIEndpoint: process.env.AZURE_OPENAI_ENDPOINT,
-  azureOpenAIDeploymentName: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
+  openAIKey: process.env.SECRET_OPENAI_API_KEY,
+  openAIModelName: "gpt-4o",
 };
 
 export default config;
