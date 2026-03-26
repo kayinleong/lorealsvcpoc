@@ -17,6 +17,7 @@ import config from "../config";
 // ---------------------------------------------------------------------------
 
 const BRIEF_PATH = path.join(process.cwd(), ".data", "Brief.xlsx");
+const ORIGINAL_FORMAT_PATH = path.join(process.cwd(), ".data", "Brief - Original Format.xlsx");
 const PROMO_SHEET = "Promo-Voucher";
 const EANS_SHEET = "Included-Excluded EANs- Voucher";
 
@@ -204,6 +205,7 @@ interface UpdateAction {
   field?: string;          // optional — not present when changes[] is used
   value?: string | number; // optional — not present when changes[] is used
   changes?: BulkChange[];  // bulk mode: multiple field updates in one action
+  updates?: BulkChange[];  // alias for changes — LLM sometimes returns "updates" instead
 }
 
 interface AddAction {
@@ -892,6 +894,125 @@ async function applyUpdate(action: UpdateAction): Promise<{
 }
 
 // ---------------------------------------------------------------------------
+// Post-operation formatting validation
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract a named XML element's full outer content from a string.
+ * Returns the matched block or an empty string if not found.
+ */
+function extractXmlBlock(xml: string, tag: string): string {
+  const m = xml.match(new RegExp(`<${tag}\\b[^>]*(?:/>|>[\\s\\S]*?</${tag}>)`));
+  return m ? m[0] : "";
+}
+
+/**
+ * Validate that Brief.xlsx formatting has not been corrupted by comparing
+ * key structural XML sections against the original reference file.
+ *
+ * Checks:
+ *  1. xl/styles.xml  — must be byte-identical (xlsx fallback rewrites this)
+ *  2. Per-sheet: <cols> block  — column widths / default styles must be intact
+ *  3. Per-sheet: <sheetFormatPr> — default row/col dimensions must be intact
+ *
+ * Returns a list of human-readable issues (empty = all good).
+ */
+async function validateBriefFormatting(): Promise<{
+  valid: boolean;
+  issues: string[];
+}> {
+  const issues: string[] = [];
+
+  if (!fs.existsSync(ORIGINAL_FORMAT_PATH)) {
+    console.warn(`[validateFormatting] Reference file not found at ${ORIGINAL_FORMAT_PATH} — skipping format check`);
+    return { valid: true, issues: [] };
+  }
+
+  try {
+    const currentZip = new AdmZip(BRIEF_PATH);
+    const refZip = new AdmZip(ORIGINAL_FORMAT_PATH);
+
+    // ── 1. styles.xml must be identical ─────────────────────────────────────
+    const currentStyles = currentZip.readAsText("xl/styles.xml");
+    const refStyles = refZip.readAsText("xl/styles.xml");
+    if (currentStyles !== refStyles) {
+      issues.push("xl/styles.xml differs from reference — cell styles may have been overwritten (xlsx fallback likely triggered)");
+    }
+
+    // ── 2. Per-sheet structural checks ──────────────────────────────────────
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      parseTagValue: false,
+      parseAttributeValue: false,
+      processEntities: false,
+    });
+
+    const wbXml = currentZip.readAsText("xl/workbook.xml");
+    const wbRelsXml = currentZip.readAsText("xl/_rels/workbook.xml.rels");
+    const wb = parser.parse(wbXml);
+    const wbRels = parser.parse(wbRelsXml);
+
+    const sheets = wb.workbook?.sheets?.sheet;
+    const sheetList: Array<{ name: string; rId: string }> = [];
+    if (Array.isArray(sheets)) {
+      for (const s of sheets) sheetList.push({ name: s["@_name"], rId: s["@_r:id"] });
+    } else if (sheets) {
+      sheetList.push({ name: sheets["@_name"], rId: sheets["@_r:id"] });
+    }
+
+    const relationships = wbRels.Relationships?.Relationship;
+    const relMap: Record<string, string> = {};
+    if (Array.isArray(relationships)) {
+      for (const r of relationships) relMap[r["@_Id"]] = r["@_Target"];
+    } else if (relationships) {
+      relMap[relationships["@_Id"]] = relationships["@_Target"];
+    }
+
+    for (const { name, rId } of sheetList) {
+      const target = relMap[rId];
+      if (!target) continue;
+      const wsPath = `xl/${target}`;
+
+      let currentWsXml: string;
+      let refWsXml: string;
+      try {
+        currentWsXml = currentZip.readAsText(wsPath);
+        refWsXml = refZip.readAsText(wsPath);
+      } catch {
+        // Sheet path may differ in the ref file — skip gracefully
+        continue;
+      }
+
+      const currentCols = extractXmlBlock(currentWsXml, "cols");
+      const refCols = extractXmlBlock(refWsXml, "cols");
+      if (currentCols !== refCols) {
+        issues.push(`Sheet "${name}": <cols> block differs — column widths or styles may be corrupted`);
+      }
+
+      const currentFmtPr = extractXmlBlock(currentWsXml, "sheetFormatPr");
+      const refFmtPr = extractXmlBlock(refWsXml, "sheetFormatPr");
+      if (currentFmtPr !== refFmtPr) {
+        issues.push(`Sheet "${name}": <sheetFormatPr> differs — default row/column dimensions may be altered`);
+      }
+    }
+
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[validateFormatting] Unexpected error:`, error);
+    issues.push(`Format validation failed with error: ${msg}`);
+  }
+
+  if (issues.length === 0) {
+    console.log(`[validateFormatting] ✓ Formatting intact — all checks passed`);
+  } else {
+    console.warn(`[validateFormatting] ⚠️  ${issues.length} formatting issue(s) detected:`);
+    for (const issue of issues) console.warn(`[validateFormatting]   • ${issue}`);
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
+// ---------------------------------------------------------------------------
 // Message handler
 // ---------------------------------------------------------------------------
 
@@ -1021,7 +1142,7 @@ app.on("message", async ({ send, activity }) => {
     if (action?.operation === "update") {
       console.log(`[${requestId}] Applying update action...`);
       const updateAction = action as UpdateAction;
-      const entries: BulkChange[] = updateAction.changes ?? [
+      const entries: BulkChange[] = updateAction.changes ?? updateAction.updates ?? [
         {
           campaign_name: updateAction.campaign_name,
           voucher_name: updateAction.voucher_name,
@@ -1052,6 +1173,10 @@ app.on("message", async ({ send, activity }) => {
 
       if (allSucceeded) {
         console.log(`[${requestId}] ✓ All updates applied. Old values: ${oldValues.join(", ")}`);
+        const fmtCheck = await validateBriefFormatting();
+        if (!fmtCheck.valid) {
+          console.warn(`[${requestId}] ⚠️  Formatting issues after update: ${fmtCheck.issues.join("; ")}`);
+        }
         displayText +=
           "\n\nBrief is updated: [Download the latest Brief.xlsx here](.data/Brief.xlsx)";
       } else {
@@ -1063,6 +1188,10 @@ app.on("message", async ({ send, activity }) => {
       const result = await applyAdd(action as AddAction);
       if (result.success) {
         console.log(`[${requestId}] ✓ Add applied successfully. Rows added: ${result.rowsAdded}`);
+        const fmtCheck = await validateBriefFormatting();
+        if (!fmtCheck.valid) {
+          console.warn(`[${requestId}] ⚠️  Formatting issues after add: ${fmtCheck.issues.join("; ")}`);
+        }
         displayText +=
           `\n\n${result.rowsAdded} row(s) added. Brief is updated: [Download the latest Brief.xlsx here](.data/Brief.xlsx)`;
       } else {
