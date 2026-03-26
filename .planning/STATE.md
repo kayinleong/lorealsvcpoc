@@ -5,7 +5,7 @@ milestone_name: milestone
 status: planning
 stopped_at: Phase 1 context gathered
 last_updated: "2026-03-25T11:40:23.284Z"
-last_activity: "2026-03-26 - Completed quick task 260326-e71: Fix Field undefined not found in headers error in bulk update applyUpdate dispatch"
+last_activity: "2026-03-26 - Completed quick task 260326-ess: Update PDS x Birthday Full Day min spend to RM1000 in Promo-Flexi Combo-GWP"
 progress:
   total_phases: 2
   completed_phases: 0
@@ -75,7 +75,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260324-kym | Fix ECONNRESET error when processing Update PDS x Birthday Full Day Min Spend to RM1000 input | 2026-03-24 | 7f55a5e | [260324-kym-fix-econnreset-error-when-processing-upd](.planning/quick/260324-kym-fix-econnreset-error-when-processing-upd/) |
-| 260326-e71 | Fix Field "undefined" not found in headers error in bulk update applyUpdate dispatch | 2026-03-26 | dcf6ff7 | [260326-e71-fix-field-undefined-error-in-applyupdate](.planning/quick/260326-e71-fix-field-undefined-error-in-applyupdate/) |
+| 260326-ess | Update PDS x Birthday Full Day min spend to RM1000 in Promo-Flexi Combo-GWP (M21, M22, M23) | 2026-03-26 | 2e42012 | [260326-ess-update-pds-x-birthday-full-day-min-spend](.planning/quick/260326-ess-update-pds-x-birthday-full-day-min-spend/) |
 
 ## Session Continuity
 
