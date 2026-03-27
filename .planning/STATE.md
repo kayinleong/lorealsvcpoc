@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: planning
 stopped_at: Phase 1 context gathered
-last_updated: "2026-03-25T11:40:23.284Z"
-last_activity: "2026-03-26 - Completed quick task 260326-discpct: Fix Discount Percentage storing 8800 instead of 88"
+last_updated: "2026-03-27T00:00:00.000Z"
+last_activity: "2026-03-27 - Completed quick task 260327-ect: Fix EANS tab add bugs and writeCellInRowXml regex"
 progress:
   total_phases: 2
   completed_phases: 0
@@ -78,9 +78,10 @@ None yet.
 | 260326-ess | Update PDS x Birthday Full Day min spend to RM1000 in Promo-Flexi Combo-GWP (M21, M22, M23) | 2026-03-26 | 2e42012 | [260326-ess-update-pds-x-birthday-full-day-min-spend](.planning/quick/260326-ess-update-pds-x-birthday-full-day-min-spend/) |
 | 260326-fmtval | Add post-operation formatting validation for Brief.xlsx against Original Format reference | 2026-03-26 | caf508c | [260326-fmtval-post-op-formatting-validation](.planning/quick/260326-fmtval-post-op-formatting-validation/) |
 | 260326-discpct | Fix Discount Percentage storing 8800 instead of 88 — divide by 100 before writing to Excel | 2026-03-26 | 69c0ac2 | [260326-discpct-fix-discount-percentage-8800](.planning/quick/260326-discpct-fix-discount-percentage-8800/) |
+| 260327-ect | Fix EANS tab add bugs: writeCellInRowXml lazy regex, seed PDS row in Brief.xlsx, add EANS add instructions | 2026-03-27 | 35fc405 | [260327-ect-fix-eans-tab-add-bugs-writecellinrowxml-](.planning/quick/260327-ect-fix-eans-tab-add-bugs-writecellinrowxml-/) |
 
 ## Session Continuity
 
-Last session: 2026-03-25T11:40:23.279Z
-Stopped at: Phase 1 context gathered
+Last session: 2026-03-27T00:00:00.000Z
+Stopped at: Completed quick task 260327-ect
 Resume file: .planning/phases/01-row-operations-audit-trail/01-CONTEXT.md

@@ -594,7 +594,7 @@ function writeCellInRowXml(
   const isNumber = typeof value === "number";
 
   const cellPattern = new RegExp(
-    `<c\\s+r="${cellRef}"([^>]*)(?:/>|>[\\s\\S]*?</c>)`
+    `<c\\s+r="${cellRef}"([^>]*?)(?:/>|>[\\s\\S]*?</c>)`
   );
   const match = rowInnerXml.match(cellPattern);
 

@@ -197,7 +197,8 @@ Always run these checks BEFORE applying an update. If any rule fails, reject the
 
 1. Voucher Name
    - Required when any Promo-Voucher row has Storewide = "Specific SKUs"
-   - Must match a Voucher Name that exists in the Promo-Voucher tab
+   - For UPDATE/READ: Must match a Voucher Name that exists in the Promo-Voucher tab
+   - For ADD: Warn if Voucher Name not found in Promo-Voucher, but do not block
 
 2. Inclusion Group / Exclusion Group
    - On the same row, only one of these can be filled — not both
@@ -324,6 +325,42 @@ IMPORTANT:
 - Use null (not empty string) for numeric fields that must be blank (e.g., Discount Amount when type is Percentage)
 - Include ALL rows in a single `rows` array — never split into multiple action blocks
 - The system will automatically insert the rows and confirm success
+
+---
+
+## PERFORMING ADDS — Included-Excluded EANs- Voucher Tab
+
+When the user requests to add a row to the Included-Excluded EANs- Voucher tab (e.g., "add inclusion group X for voucher Y", "add exclusion group X for voucher Y"):
+
+### Step 1 — Parse exactly what the user said
+- **Voucher Name**: Use the EXACT string the user provided — do NOT match, complete, or substitute from existing voucher names in the data. If the user says "add voucher name PDS", write "PDS" exactly.
+- **Inclusion Group** vs **Exclusion Group**: Only one can be filled per row. If the user says "add inclusion group X", fill Inclusion Group only. If "add exclusion group X", fill Exclusion Group only.
+- **Group Name / SKU EAN**: Leave blank unless explicitly provided.
+
+### Step 2 — Validation (soft warnings only)
+- If the Voucher Name does not exist in the Promo-Voucher tab: **warn the user** ("Note: voucher name X was not found in Promo-Voucher — adding anyway") but **proceed with the add**. Do NOT block.
+- If both Inclusion Group and Exclusion Group are filled on the same row: reject with explanation.
+
+### Step 3 — Output the action block
+Output the action block immediately without asking for confirmation:
+
+```
+<action>
+{
+  "operation": "add",
+  "tab": "Included-Excluded EANs- Voucher",
+  "rows": [
+    {
+      "Voucher Name": "<exact string from user>",
+      "Inclusion Group": "<value or empty string>",
+      "Exclusion Group": "<value or empty string>",
+      "Group Name": "",
+      "SKU EAN": ""
+    }
+  ]
+}
+</action>
+```
 
 ---
 
