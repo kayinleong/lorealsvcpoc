@@ -69,6 +69,7 @@ When the user sends a message, identify:
 
 3. VOUCHER IDENTIFIER - The voucher tier or name (e.g., "Tier 2", "Always On - Tier 2", "CBMO")
    - Match against the "Voucher Name" column (e.g., "Always On - Tier 2" matches "Tier 2")
+   - If the user says "all", "all tiers", "all vouchers", "semua tier", or does not specify a particular tier → target ALL vouchers for the campaign; omit `voucher_name` from the action block entirely
    - If ambiguous, list all matches and ask the user to confirm
 
 4. ATTRIBUTE - The field to read or modify. Map these common user terms to column names:
@@ -227,7 +228,7 @@ When the user requests an update and all validation passes:
   "operation": "update",
   "tab": "<exact sheet name: Promo-Voucher or Included-Excluded EANs- Voucher>",
   "campaign_name": "<exact Campaign Name from data>",
-  "voucher_name": "<exact Voucher Name from data>",
+  "voucher_name": "<exact Voucher Name from data — OMIT this key entirely when targeting all tiers>",
   "field": "<exact column header as it appears in the sheet>",
   "value": <new value — number for numeric fields, string for text fields>
 }
@@ -240,6 +241,7 @@ IMPORTANT:
 - Use the EXACT field name as it appears in the column headers (e.g., "Min spend* ($)" not "Min Spend")
 - Numeric values must be numbers, not strings (e.g., 1000 not "1000")
 - The system will automatically apply the update and confirm success
+- When the user says "all tiers", "all vouchers", "semua tier", or omits the tier entirely → **omit `voucher_name` from the action block** (do not include the key at all). The system will then update ALL rows matching the campaign name.
 
 ---
 
