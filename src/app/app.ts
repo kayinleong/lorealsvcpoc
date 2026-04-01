@@ -217,15 +217,43 @@ interface AddAction {
 
 type BriefAction = UpdateAction | AddAction;
 
-/** Extract the JSON action block from LLM response text. */
+/** Extract the JSON action block(s) from LLM response text.
+ *  If the LLM emits multiple <action> blocks (e.g. one per tier), they are
+ *  merged into a single UpdateAction with a `changes[]` array so the message
+ *  handler can apply all updates in one pass.
+ */
 function parseAction(text: string): BriefAction | null {
-  const match = text.match(/<action>([\s\S]*?)<\/action>/i);
-  if (!match) return null;
-  try {
-    return JSON.parse(match[1].trim()) as BriefAction;
-  } catch {
-    return null;
+  const matches = [...text.matchAll(/<action>([\s\S]*?)<\/action>/gi)];
+  if (matches.length === 0) return null;
+
+  const actions: BriefAction[] = [];
+  for (const m of matches) {
+    try {
+      actions.push(JSON.parse(m[1].trim()) as BriefAction);
+    } catch {
+      // skip malformed blocks
+    }
   }
+  if (actions.length === 0) return null;
+  if (actions.length === 1) return actions[0];
+
+  // Multiple update actions on the same tab → merge into one with changes[]
+  const updates = actions.filter((a): a is UpdateAction => a.operation === "update");
+  if (updates.length === actions.length) {
+    return {
+      operation: "update",
+      tab: updates[0].tab,
+      changes: updates.map((a) => ({
+        campaign_name: a.campaign_name,
+        voucher_name: a.voucher_name,
+        field: a.field!,
+        value: a.value!,
+      })),
+    } as UpdateAction;
+  }
+
+  // Fallback: return first action
+  return actions[0];
 }
 
 /** Remove <action>...</action> block from display text. */
