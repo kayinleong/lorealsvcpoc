@@ -5,7 +5,7 @@ milestone_name: milestone
 status: planning
 stopped_at: Phase 1 context gathered
 last_updated: "2026-03-27T00:00:00.000Z"
-last_activity: "2026-03-27 - Completed quick task 260327-ect: fix EANS tab add bugs and add missing PDS row"
+last_activity: "2026-04-01 - Completed quick task 260401-lq1: Fix prompt: Update Campaign BAU Full Day all tier Min Spend to RM1k"
 progress:
   total_phases: 2
   completed_phases: 0
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 Phase: 1 of 2 (Row Operations + Audit Trail)
 Plan: 0 of 3 in current phase
 Status: Ready to plan
-Last activity: 2026-03-24 - Completed quick task 260324-kym: Fix ECONNRESET error when processing Update PDS x Birthday Full Day Min Spend to RM1000 input
+Last activity: 2026-04-01 - Completed quick task 260401-lq1: Fix prompt: Update Campaign BAU Full Day all tier Min Spend to RM1k
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -79,6 +79,7 @@ None yet.
 | 260326-fmtval | Add post-operation formatting validation for Brief.xlsx against Original Format reference | 2026-03-26 | caf508c | [260326-fmtval-post-op-formatting-validation](.planning/quick/260326-fmtval-post-op-formatting-validation/) |
 | 260326-discpct | Fix Discount Percentage storing 8800 instead of 88 — divide by 100 before writing to Excel | 2026-03-26 | 69c0ac2 | [260326-discpct-fix-discount-percentage-8800](.planning/quick/260326-discpct-fix-discount-percentage-8800/) |
 | 260327-ect | Fix EANS tab add bugs: writeCellInRowXml lazy regex, missing PDS row in Brief.xlsx, EANS add instructions | 2026-03-27 | 9785434 | [260327-ect-fix-eans-tab-add-bugs-writecellinrowxml-](.planning/quick/260327-ect-fix-eans-tab-add-bugs-writecellinrowxml-/) |
+| 260401-lq1 | Fix prompt: Update Campaign BAU Full Day all tier Min Spend to RM1k | 2026-04-01 | 4ad6ea8 | [260401-lq1-fix-prompt-update-campaign-bau-full-day-](.planning/quick/260401-lq1-fix-prompt-update-campaign-bau-full-day-/) |
 
 ## Session Continuity
 
