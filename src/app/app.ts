@@ -20,12 +20,15 @@ const BRIEF_PATH = path.join(process.cwd(), ".data", "Brief.xlsx");
 const ORIGINAL_FORMAT_PATH = path.join(process.cwd(), ".data", "Brief - Original Format.xlsx");
 const PROMO_SHEET = "Promo-Voucher";
 const EANS_SHEET = "Included-Excluded EANs- Voucher";
+const PRICE_CHANGE_SHEET = "Price Change - non Flash";
 
 // Row indices (0-based) inside each sheet
 const PROMO_HEADER_ROW = 7; // Row 8 in Excel — column names
 const PROMO_DATA_ROW = 9; // Row 10 in Excel — first actual data row (row 9 is a description row)
 const EANS_HEADER_ROW = 4; // Row 5 in Excel — column names
 const EANS_DATA_ROW = 6; // Row 7 in Excel — first actual data row (row 6 is a description row)
+const PRICE_CHANGE_HEADER_ROW = 28; // Row 29 in Excel — column names
+const PRICE_CHANGE_DATA_ROW = 29; // Row 30 in Excel — first actual data row
 
 // ---------------------------------------------------------------------------
 // Shared model / storage / app
@@ -176,7 +179,24 @@ function readBriefContext(): string {
     11,
   );
 
-  const result = ["[BRIEF DATA]", promoSection, "", eansSection, "[/BRIEF DATA]"].join(
+  // Price Change — EAN Code (col B, index 1) and Product Name (col F, index 5) only
+  const priceChangeSection = (() => {
+    const ws = wb.Sheets[PRICE_CHANGE_SHEET];
+    if (!ws) return `### ${PRICE_CHANGE_SHEET}\n(sheet not found)\n`;
+    const rows = xlsx.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "" }) as unknown[][];
+    const colIndices = [1, 3, 5]; // EAN Code, Product ID, Product Name
+    const headerRow = rows[PRICE_CHANGE_HEADER_ROW] as unknown[];
+    const headers = colIndices.map((i) => cleanHeader(headerRow[i]));
+    const dataRows = rows.slice(PRICE_CHANGE_DATA_ROW)
+      .map((row) => colIndices.map((i) => (row as unknown[])[i] ?? ""))
+      .filter((row) => row.some((cell) => cell !== ""))
+      .map((row) => row.map((cell) => (cell === "" ? "" : String(cell))));
+    const result = [`### ${PRICE_CHANGE_SHEET} (${dataRows.length} rows)`, headers.join("\t"), ...dataRows.map((r) => r.join("\t"))].join("\n");
+    console.log(`[readBriefContext] Formatted sheet "${PRICE_CHANGE_SHEET}": ${dataRows.length} rows, ${result.length} characters`);
+    return result;
+  })();
+
+  const result = ["[BRIEF DATA]", promoSection, "", eansSection, "", priceChangeSection, "[/BRIEF DATA]"].join(
     "\n",
   );
 
@@ -640,6 +660,58 @@ function writeCellInRowXml(
 }
 
 /**
+ * Write a set of field values into a specific row in worksheet XML.
+ * Creates the row element if it doesn't already exist in the XML.
+ */
+function writeFieldsToRow(
+  worksheetXML: string,
+  targetExcelRow: number,
+  fieldMap: Record<string, string | number | null>,
+  headers: string[]
+): string {
+  const rowPattern = new RegExp(
+    `(<row\\b[^>]*\\br="${targetExcelRow}"[^>]*>)([\\s\\S]*?)(</row>)`
+  );
+  const rowMatch = worksheetXML.match(rowPattern);
+
+  if (!rowMatch) {
+    const cells: string[] = [];
+    for (const [field, rawValue] of Object.entries(fieldMap)) {
+      const processed = processAddValue(field, rawValue);
+      if (processed === null) continue;
+      const colIdx = headers.indexOf(cleanHeader(field));
+      if (colIdx === -1) continue;
+      const cellRef = `${columnNumberToLetter(colIdx + 1)}${targetExcelRow}`;
+      const escaped = escapeXmlText(String(processed));
+      cells.push(
+        typeof processed === "number"
+          ? `<c r="${cellRef}"><v>${escaped}</v></c>`
+          : `<c r="${cellRef}" t="inlineStr"><is><t>${escaped}</t></is></c>`
+      );
+    }
+    return worksheetXML.replace(
+      /<\/sheetData>/,
+      `<row r="${targetExcelRow}">${cells.join("")}</row></sheetData>`
+    );
+  }
+
+  let rowInner = rowMatch[2];
+  for (const [field, rawValue] of Object.entries(fieldMap)) {
+    const processed = processAddValue(field, rawValue);
+    if (processed === null) continue;
+    const colIdx = headers.indexOf(cleanHeader(field));
+    if (colIdx === -1) {
+      console.warn(`[writeFieldsToRow] Field "${field}" not in headers — skipped`);
+      continue;
+    }
+    const cellRef = `${columnNumberToLetter(colIdx + 1)}${targetExcelRow}`;
+    rowInner = writeCellInRowXml(rowInner, cellRef, processed);
+  }
+
+  return worksheetXML.replace(rowPattern, `${rowMatch[1]}${rowInner}${rowMatch[3]}`);
+}
+
+/**
  * Surgically write new data rows into an existing worksheet.
  *
  * The Promo-Voucher sheet has 966 pre-styled rows (with formulas and styles
@@ -714,15 +786,20 @@ async function applyAdd(action: AddAction): Promise<{
     const dataRowIdx  = action.tab === PROMO_SHEET ? PROMO_DATA_ROW  : EANS_DATA_ROW;
     const headers = (sheetRows[headerRowIdx] as unknown[]).map((h) => cleanHeader(String(h ?? "")));
 
-    // Find the last row with a real Campaign Name / Voucher Name.
-    // Skip placeholder rows (value contains "<" — e.g. "<Placeholder>") which
-    // are template rows pre-filled at the bottom of the sheet.
-    const keyColIdx = 1; // Campaign Name (Promo-Voucher) or Voucher Name (EANs)
+    // Find the last row with real data, skipping placeholder rows (value contains "<").
+    // For the EANS tab the SKU Group Library side (cols G-H) can extend many rows
+    // beyond the Voucher side (col B), so check all relevant columns.
+    const keyColIndices = action.tab === PROMO_SHEET
+      ? [1]          // Campaign Name only
+      : [1, 2, 3, 6, 7]; // Voucher Name, Inclusion Group, Exclusion Group, Group Name, SKU EAN
     let lastDataExcelRow = headerRowIdx + 1; // fallback: just after header
     for (let r = sheetRows.length - 1; r >= dataRowIdx; r--) {
       const row = sheetRows[r] as unknown[];
-      const val = String(row[keyColIdx] ?? "").trim();
-      if (val !== "" && !val.includes("<")) {
+      const hasData = keyColIndices.some((ci) => {
+        const val = String(row[ci] ?? "").trim();
+        return val !== "" && !val.includes("<");
+      });
+      if (hasData) {
         lastDataExcelRow = r + 1; // xlsx is 0-indexed; Excel rows are 1-indexed
         break;
       }
@@ -731,6 +808,61 @@ async function applyAdd(action: AddAction): Promise<{
 
     // ── Step 3: write values into existing rows, one row at a time ───────────
     let worksheetXML = zip.readAsText(worksheetPath);
+
+    // ── EANS tab: left side (voucher dashboard, cols B-D) and right side
+    // (SKU group library, cols G-H) are independent tables that grow at
+    // different rates — append each side to its own last occupied row.
+    if (action.tab === EANS_SHEET) {
+      const LEFT_COL_IDXS  = new Set([1, 2, 3]);    // Voucher Name, Inclusion Group, Exclusion Group
+      const RIGHT_COL_IDXS = new Set([6, 7, 9]);   // Group Name, SKU EAN, Product ID
+
+      const findLastRow = (colIdxs: Set<number>): number => {
+        for (let r = sheetRows.length - 1; r >= EANS_DATA_ROW; r--) {
+          const row = sheetRows[r] as unknown[];
+          if ([...colIdxs].some((ci) => {
+            const v = String(row[ci] ?? "").trim();
+            return v !== "" && !v.includes("<");
+          })) return r + 1; // convert 0-indexed to Excel row number
+        }
+        return EANS_HEADER_ROW + 1; // fallback: just after header
+      };
+
+      const lastLeftRow  = findLastRow(LEFT_COL_IDXS);
+      const lastRightRow = findLastRow(RIGHT_COL_IDXS);
+      console.log(`[applyAdd] EANS left last row: ${lastLeftRow}, right last row: ${lastRightRow}`);
+
+      let leftOffset = 0;
+      let rightOffset = 0;
+      for (const rowData of action.rows) {
+        const leftFields:  Record<string, string | number | null> = {};
+        const rightFields: Record<string, string | number | null> = {};
+
+        for (const [field, value] of Object.entries(rowData)) {
+          const colIdx = headers.indexOf(cleanHeader(field));
+          if (LEFT_COL_IDXS.has(colIdx))       leftFields[field]  = value as string | number | null;
+          else if (RIGHT_COL_IDXS.has(colIdx)) rightFields[field] = value as string | number | null;
+        }
+
+        const hasLeft  = Object.values(leftFields).some((v)  => v !== null && v !== "");
+        const hasRight = Object.values(rightFields).some((v) => v !== null && v !== "");
+
+        if (hasLeft) {
+          const targetRow = lastLeftRow + 1 + leftOffset++;
+          worksheetXML = writeFieldsToRow(worksheetXML, targetRow, leftFields, headers);
+          console.log(`[applyAdd] EANS left side → row ${targetRow}`);
+        }
+        if (hasRight) {
+          const targetRow = lastRightRow + 1 + rightOffset++;
+          worksheetXML = writeFieldsToRow(worksheetXML, targetRow, rightFields, headers);
+          console.log(`[applyAdd] EANS right side → row ${targetRow}`);
+        }
+      }
+
+      zip.updateFile(worksheetPath, Buffer.from(worksheetXML, "utf8"));
+      zip.writeZip(BRIEF_PATH);
+      console.log(`[applyAdd] ✓ EANS: added ${action.rows.length} row(s) across left/right sides`);
+      return { success: true, rowsAdded: action.rows.length };
+    }
 
     for (let i = 0; i < action.rows.length; i++) {
       const targetExcelRow = lastDataExcelRow + 1 + i;

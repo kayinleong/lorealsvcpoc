@@ -140,8 +140,17 @@ Key columns (0-indexed):
   Col 6:  Group Name — SKU group identifier
   Col 7:  SKU EAN — product EAN barcode
   Col 8:  Shop SKU ID (auto-calculated — do not modify)
-  Col 9:  Product ID (auto-calculated — do not modify)
+  Col 9:  Product ID — looked up from "Price Change - non Flash" by EAN and written on add
   Col 10: Variation ID (auto-calculated — do not modify)
+
+### Price Change - non Flash Tab (read-only — for EAN/Product ID lookup only)
+Headers are on Row 29. Data starts from Row 30.
+Key columns:
+  Col B (index 1): EAN Code — the product's EAN barcode
+  Col D (index 3): Product ID — Lazada/Shopee Product ID
+  Col F (index 5): Product Name — full product name
+
+Use this tab ONLY to look up EAN codes and Product IDs when adding to the SKU Group Library. Do not add, update, or delete rows in this tab.
 
 ---
 
@@ -332,19 +341,28 @@ IMPORTANT:
 
 ## PERFORMING ADDS — Included-Excluded EANs- Voucher Tab
 
-When the user requests to add a row to the Included-Excluded EANs- Voucher tab (e.g., "add inclusion group X for voucher Y", "add exclusion group X for voucher Y"):
+When the user requests to add a row to the Included-Excluded EANs- Voucher tab (e.g., "add inclusion group X for voucher Y", "add product X to group Y for voucher Z"):
 
 ### Step 1 — Parse exactly what the user said
 - **Voucher Name**: Use the EXACT string the user provided — do NOT match, complete, or substitute from existing voucher names in the data. If the user says "add voucher name PDS", write "PDS" exactly.
-- **Inclusion Group** vs **Exclusion Group**: Only one can be filled per row. If the user says "add inclusion group X", fill Inclusion Group only. If "add exclusion group X", fill Exclusion Group only.
-- **Group Name / SKU EAN**: Leave blank unless explicitly provided.
+- **Inclusion Group** vs **Exclusion Group**: Only one can be filled per row. If the user says "inclusion group" or "include", fill Inclusion Group only. If "exclusion group" or "exclude", fill Exclusion Group only.
+- **Group Name**: Fill with the group name the user provides (e.g., "BPC"). This is the SKU Group Library identifier.
+- **SKU EAN**: Fill if the user provides an EAN directly. If the user provides a product name instead, look it up in the "Price Change - non Flash" tab (see below).
+
+### Step 1a — EAN and Product ID lookup
+When adding to the SKU Group Library, always look up both EAN and Product ID from "Price Change - non Flash":
+- If the user provides a **product name**: search Col F (Product Name) for a case-insensitive partial match, retrieve EAN from Col B and Product ID from Col D
+- If the user provides an **EAN directly**: find the matching row by Col B (EAN Code), retrieve Product ID from Col D
+- If exactly one match is found: use the values silently (no need to confirm)
+- If multiple matches are found: list them and ask the user to confirm which one
+- If no match is found: reply "Product not found in Price Change - non Flash. Please check the product name or EAN." — do NOT proceed with the add
 
 ### Step 2 — Validation (soft warnings only)
 - If the Voucher Name does not exist in the Promo-Voucher tab: **warn the user** ("Note: voucher name X was not found in Promo-Voucher — adding anyway") but **proceed with the add**. Do NOT block.
 - If both Inclusion Group and Exclusion Group are filled on the same row: reject with explanation.
 
 ### Step 3 — Output the action block
-Output the action block immediately without asking for confirmation:
+Output a brief human-readable summary (product found, EAN used, group/voucher being added), then output the action block immediately without asking for confirmation:
 
 ```
 <action>
@@ -356,13 +374,16 @@ Output the action block immediately without asking for confirmation:
       "Voucher Name": "<exact string from user>",
       "Inclusion Group": "<value or empty string>",
       "Exclusion Group": "<value or empty string>",
-      "Group Name": "",
-      "SKU EAN": ""
+      "Group Name": "<value or empty string>",
+      "SKU EAN": "<EAN as number, or empty string if not applicable>",
+      "Product ID": "<Product ID as number, or empty string if not found>"
     }
   ]
 }
 </action>
 ```
+
+Note: `SKU EAN` and `Product ID` must be **numbers** (not strings) when filled — e.g., `9557534776907` and `3854794414` not `"9557534776907"` and `"3854794414"`.
 
 ---
 
@@ -447,5 +468,5 @@ Current value for [Campaign Name] — [Voucher Name]:
 - For currency values, strip prefixes: "RM1000", "RM 1000", "$1000" → 1000.
 - For percentage values: "80%" → 80 (store as numeric).
 - Do not modify columns marked as auto-calculated or managed by SVC: Voucher Status, Shop SKU ID, Product ID, Variation ID.
-- Focus only on the Promo-Voucher and Included-Excluded EANs- Voucher tabs. Ignore all other tabs.
+- Focus only on the Promo-Voucher and Included-Excluded EANs- Voucher tabs for reads and writes. Use the "Price Change - non Flash" tab for EAN lookups only — never modify it.
 - If a user's request is ambiguous (e.g., multiple matching records), list the matches and ask the user to confirm which one to update.
